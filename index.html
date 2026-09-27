@@ -1,0 +1,529 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl" id="htmlTag">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    
+    <meta name="theme-color" content="#2563eb">
+    <meta name="mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="apple-mobile-web-app-title" content="دليل القاعات">
+    
+    <link rel="manifest" href='data:application/manifest+json,{"name":"دليل القاعات الجامعية","short_name":"دليل القاعات","display":"standalone","start_url":".","background_color":"#f3f4f6","theme_color":"#2563eb"}'>
+
+    <title>دليل القاعات الجامعية</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;600;700;900&display=swap" rel="stylesheet">
+    <style>
+        body { font-family: 'Cairo', sans-serif; background-color: #f3f4f6; -webkit-tap-highlight-color: transparent; }
+        ::-webkit-scrollbar { display: none; }
+        .no-select { -webkit-user-select: none; -moz-user-select: none; -ms-user-select: none; user-select: none; }
+    </style>
+</head>
+<body class="text-gray-800 antialiased h-screen flex flex-col items-center overflow-x-hidden relative">
+
+    <div class="w-full max-w-md bg-white h-full shadow-lg relative flex flex-col z-10">
+        
+        <header class="bg-blue-600 text-white text-center py-4 shadow-md rounded-b-xl z-20 relative no-select">
+            <button onclick="toggleLang()" class="absolute left-4 top-4 bg-white text-blue-600 text-sm font-bold px-2 py-1 rounded shadow" id="langBtn">EN</button>
+            <h1 class="text-xl font-bold" id="ui-title">دليل القاعات</h1>
+        </header>
+
+        <main class="flex-1 overflow-y-auto p-5 pb-20 relative">
+            
+            <section id="searchSection" class="block">
+                <h2 class="text-lg font-semibold mb-4 text-center no-select" id="ui-searchHeader">أين قاعتي؟</h2>
+                <div class="relative mb-4">
+                    <input type="text" id="roomInput" autocomplete="off" placeholder="أدخل رقم القاعة (مثال: 1206)" 
+                        class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 text-center text-lg shadow-sm"
+                        onkeypress="handleEnter(event)" oninput="handleRoomInput(this)">
+                </div>
+                <button onclick="findRoom()" class="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-3 px-4 rounded-lg transition duration-200 shadow-md no-select" id="ui-searchBtn">
+                    ابحث عن القاعة
+                </button>
+
+                <div id="resultOutput" class="mt-6 hidden"></div>
+
+                <div id="saveForm" class="mt-6 hidden bg-blue-50 p-4 rounded-lg border border-blue-100 shadow-sm">
+                    <h3 class="font-semibold text-blue-800 mb-2 text-sm no-select" id="ui-savePrompt">هل ترغب بحفظ هذه القاعة لمادة معينة؟</h3>
+                    <input type="text" id="subjectInput" autocomplete="off" placeholder="اسم المادة (مثال: تفاضل وتكامل)" 
+                        class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-400 mb-3 text-sm"
+                        oninput="autoDirection(this)">
+                    <button onclick="saveSubject()" class="w-full bg-green-500 hover:bg-green-600 text-white font-bold py-2 px-4 rounded-md transition duration-200 text-sm no-select" id="ui-saveBtn">
+                        حفظ المادة والقاعة
+                    </button>
+                </div>
+            </section>
+
+            <section id="savedSection" class="hidden">
+                <h2 class="text-lg font-semibold mb-4 text-center no-select" id="ui-savedHeader">موادي وقاعاتي 📚</h2>
+                <div id="savedList" class="space-y-3">
+                </div>
+            </section>
+
+        </main>
+
+        <nav class="bg-white border-t border-gray-200 fixed bottom-0 w-full max-w-md flex justify-around py-3 shadow-[0_-2px_10px_rgba(0,0,0,0.05)] rounded-t-xl z-20 no-select">
+            <button onclick="switchTab('search')" id="tab-search" class="flex flex-col items-center text-blue-600 font-semibold w-1/2">
+                <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6 mb-1" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+                </svg>
+                <span id="ui-tabSearch">البحث</span>
+            </button>
+            <button onclick="switchTab('saved')" id="tab-saved" class="flex flex-col items-center text-gray-400 font-semibold w-1/2 hover:text-blue-500 transition">
+                <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6 mb-1" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 5a2 2 0 012-2h10a2 2 0 012 2v16l-7-3.5L5 21V5z" />
+                </svg>
+                <span id="ui-tabSaved">موادي</span>
+            </button>
+        </nav>
+
+        <!-- نافذة التعديل -->
+        <div id="editModal" class="fixed inset-0 bg-black bg-opacity-40 flex justify-center items-center z-50 hidden no-select backdrop-blur-sm">
+            <div class="bg-white rounded-xl p-5 w-11/12 max-w-sm shadow-2xl transform transition-all">
+                <h3 class="text-lg font-bold text-blue-800 mb-3" id="ui-editModalTitle">تعديل اسم المادة</h3>
+                <input type="text" id="editSubjectInput" autocomplete="off" 
+                    class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 mb-4 text-base"
+                    oninput="autoDirection(this)" onkeypress="handleEditEnter(event)">
+                <div class="flex justify-end space-x-2 rtl:space-x-reverse">
+                    <button onclick="closeEditModal()" class="px-4 py-2 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300 transition text-sm font-bold" id="ui-editCancelBtn">إلغاء</button>
+                    <button onclick="saveEdit()" class="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition text-sm font-bold" id="ui-editSaveBtn">حفظ</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- نافذة معاينة الصورة قبل التنزيل -->
+        <div id="previewModal" class="fixed inset-0 bg-black bg-opacity-60 flex justify-center items-center z-50 hidden no-select backdrop-blur-sm">
+            <div class="bg-white rounded-2xl p-5 w-11/12 max-w-sm shadow-2xl flex flex-col items-center">
+                <h3 class="text-lg font-black text-gray-800 mb-4 w-full text-center border-b pb-2" id="ui-previewTitle">معاينة الصورة</h3>
+                <div id="previewCanvasContainer" class="mb-5 border border-gray-200 rounded-xl overflow-hidden shadow-sm flex justify-center w-full bg-gray-50 p-2">
+                    <!-- الصورة سيتم إدراجها هنا -->
+                </div>
+                <div class="flex space-x-3 rtl:space-x-reverse w-full">
+                    <button onclick="closePreviewModal()" class="flex-1 py-3 bg-gray-100 text-gray-700 rounded-xl hover:bg-gray-200 transition text-sm font-bold" id="ui-previewCloseBtn">إغلاق</button>
+                    <button id="downloadConfirmBtn" class="flex-1 py-3 bg-blue-600 text-white rounded-xl hover:bg-blue-700 transition text-sm font-bold flex justify-center items-center gap-2 shadow-md">
+                        <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
+                            <path fill-rule="evenodd" d="M3 17a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1zm3.293-7.707a1 1 0 011.414 0L9 10.586V3a1 1 0 112 0v7.586l1.293-1.293a1 1 0 111.414 1.414l-3 3a1 1 0 01-1.414 0l-3-3a1 1 0 010-1.414z" clip-rule="evenodd" />
+                        </svg>
+                        <span id="ui-previewDownloadBtn">تنزيل</span>
+                    </button>
+                </div>
+            </div>
+        </div>
+
+    </div>
+
+    <!-- قالب الصورة المصمم يدوياً بخصائص صارمة للمحاذاة -->
+    <div style="position: fixed; left: -9999px; top: 0; z-index: -100;">
+        <div id="storyTemplate" style="width: 420px; background-color: #ffffff; border: 1px solid #e5e7eb; border-radius: 24px; padding: 30px; font-family: 'Cairo', sans-serif;">
+            
+            <div style="text-align: center; margin-bottom: 20px;">
+                <h1 style="font-size: 22px; font-weight: bold; color: #2563eb; margin: 0 0 10px 0;" id="storyAppName">دليل القاعات الجامعية</h1>
+                <h2 style="font-size: 34px; font-weight: 900; color: #111827; margin: 0; line-height: 1.3;" id="storySubject"></h2>
+            </div>
+            
+            <div style="border-top: 1px solid #e5e7eb; margin: 0 15px 25px 15px;"></div>
+            
+            <!-- التعديل الجذري: استخدام padding بدلاً من height، وتغيير نوع الخط للرقم لضمان توسيطه المطلق -->
+            <div style="background-color: #e0f2fe; border: 3px solid #bae6fd; border-radius: 20px; text-align: center; padding: 45px 0; margin-bottom: 30px; box-sizing: border-box;">
+                <div id="storyRoomCode" style="font-family: system-ui, -apple-system, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; font-size: 85px; font-weight: 900; color: #1d4ed8; line-height: 1; letter-spacing: 5px; margin: 0; padding: 0;"></div>
+            </div>
+
+            <div id="storyDetailsContainer" style="background-color: #f9fafb; border: 1px solid #f3f4f6; border-radius: 20px; padding: 25px;">
+            </div>
+            
+        </div>
+    </div>
+
+    <script>
+        const collegesAR = {
+            "1": "كلية الـ IT", "2": "كلية الحقوق", "3": "المشاغل", "4": "كلية الصيدلة",
+            "5": "كلية الأعمال", "6": "الصالة الرياضية", "7": "كلية التمريض", "8": "كلية الفنون",
+            "9": "كلية الهندسة", "10": "العمادة", "21": "كلية الأسنان", "G": "مبنى العيادات", "B": "مبنى العيادات"
+        };
+        const collegesEN = {
+            "1": "IT Faculty", "2": "Law Faculty", "3": "Workshops", "4": "Pharmacy Faculty",
+            "5": "Business Faculty", "6": "Gym", "7": "Nursing Faculty", "8": "Arts Faculty",
+            "9": "Engineering Faculty", "10": "Deanship", "21": "Dentistry", "G": "Clinics Bldg", "B": "Clinics Bldg"
+        };
+        const floorNamesAR = { "0": "الأرضي", "1": "الأول", "2": "الثاني", "3": "الثالث", "4": "الرابع", "5": "الخامس", "G": "الأرضي", "B": "التسوية" };
+        const floorNamesEN = { "0": "Ground", "1": "First", "2": "Second", "3": "Third", "4": "Fourth", "5": "Fifth", "G": "Ground", "B": "Basement" };
+
+        const translations = {
+            ar: {
+                title: "دليل القاعات", searchHeader: "أين قاعتي؟", roomPlaceholder: "أدخل رقم القاعة (مثال: 1206)",
+                searchBtn: "ابحث عن القاعة", savePrompt: "هل ترغب بحفظ هذه القاعة لمادة معينة؟",
+                subjectPlaceholder: "اسم المادة (مثال: تفاضل وتكامل)", saveBtn: "حفظ المادة والقاعة",
+                savedHeader: "موادي وقاعاتي 📚", tabSearch: "البحث", tabSaved: "موادي",
+                invalidRoom: "يرجى إدخال رقم قاعة صحيح.", invalidCollege: "رمز الكلية غير معروف، تأكد من الرقم.",
+                noSaved: "لا يوجد مواد محفوظة حالياً.", saveSuccess: "تم حفظ المادة بنجاح!",
+                emptySubject: "الرجاء إدخال اسم المادة أولاً.", editModalTitle: "تعديل اسم المادة", 
+                editCancelBtn: "إلغاء", editSaveBtn: "حفظ",
+                storyApp: "دليل القاعات الجامعية",
+                floorAr: "الطابق", roomAr: "قاعة رقم",
+                previewTitle: "معاينة الصورة", previewClose: "إغلاق", previewDownload: "تنزيل الصورة"
+            },
+            en: {
+                title: "Classrooms Guide", searchHeader: "Where is my classroom?", roomPlaceholder: "Enter classroom number (e.g., 1206)",
+                searchBtn: "Find Classroom", savePrompt: "Save this classroom for a specific subject?",
+                subjectPlaceholder: "Subject name (e.g., Calculus)", saveBtn: "Save Subject & Classroom",
+                savedHeader: "My Subjects & Classrooms 📚", tabSearch: "Search", tabSaved: "Subjects",
+                invalidRoom: "Please enter a valid classroom number.", invalidCollege: "Unknown college code.",
+                noSaved: "No saved subjects currently.", saveSuccess: "Subject saved successfully!",
+                emptySubject: "Please enter a subject name first.", editModalTitle: "Edit Subject Name", 
+                editCancelBtn: "Cancel", editSaveBtn: "Save",
+                storyApp: "Classrooms Guide",
+                floorEn: "Floor", roomEn: "Room",
+                previewTitle: "Image Preview", previewClose: "Close", previewDownload: "Download"
+            }
+        };
+
+        let currentLang = 'ar';
+        let currentSearchData = null;
+        let currentEditId = null;
+
+        function autoDirection(el) {
+            const isArabic = /[\u0600-\u06FF]/.test(el.value);
+            if (el.value.trim() === '') {
+                el.dir = currentLang === 'ar' ? 'rtl' : 'ltr';
+            } else if (isArabic) {
+                el.dir = 'rtl';
+            } else {
+                el.dir = 'ltr';
+            }
+        }
+
+        function handleRoomInput(el) {
+            autoDirection(el); 
+            document.getElementById("resultOutput").classList.add("hidden");
+            document.getElementById("saveForm").classList.add("hidden");
+            currentSearchData = null;
+        }
+
+        function toggleLang() {
+            currentLang = currentLang === 'ar' ? 'en' : 'ar';
+            let htmlTag = document.getElementById('htmlTag');
+            let langBtn = document.getElementById('langBtn');
+
+            htmlTag.lang = currentLang;
+            htmlTag.dir = currentLang === 'ar' ? 'rtl' : 'ltr';
+            langBtn.innerText = currentLang === 'ar' ? 'EN' : 'عربي';
+            langBtn.className = currentLang === 'ar' 
+                ? "absolute left-4 top-4 bg-white text-blue-600 text-sm font-bold px-2 py-1 rounded shadow"
+                : "absolute right-4 top-4 bg-white text-blue-600 text-sm font-bold px-2 py-1 rounded shadow";
+
+            document.getElementById('ui-title').innerText = translations[currentLang].title;
+            document.getElementById('ui-searchHeader').innerText = translations[currentLang].searchHeader;
+            document.getElementById('roomInput').placeholder = translations[currentLang].roomPlaceholder;
+            document.getElementById('ui-searchBtn').innerText = translations[currentLang].searchBtn;
+            document.getElementById('ui-savePrompt').innerText = translations[currentLang].savePrompt;
+            document.getElementById('subjectInput').placeholder = translations[currentLang].subjectPlaceholder;
+            document.getElementById('ui-saveBtn').innerText = translations[currentLang].saveBtn;
+            document.getElementById('ui-savedHeader').innerText = translations[currentLang].savedHeader;
+            document.getElementById('ui-tabSearch').innerText = translations[currentLang].tabSearch;
+            document.getElementById('ui-tabSaved').innerText = translations[currentLang].tabSaved;
+            
+            document.getElementById('ui-editModalTitle').innerText = translations[currentLang].editModalTitle;
+            document.getElementById('ui-editCancelBtn').innerText = translations[currentLang].editCancelBtn;
+            document.getElementById('ui-editSaveBtn').innerText = translations[currentLang].editSaveBtn;
+            
+            document.getElementById('ui-previewTitle').innerText = translations[currentLang].previewTitle;
+            document.getElementById('ui-previewCloseBtn').innerText = translations[currentLang].previewClose;
+            document.getElementById('ui-previewDownloadBtn').innerText = translations[currentLang].previewDownload;
+
+            autoDirection(document.getElementById('roomInput'));
+            autoDirection(document.getElementById('subjectInput'));
+            autoDirection(document.getElementById('editSubjectInput'));
+
+            if (!document.getElementById("resultOutput").classList.contains("hidden") && currentSearchData) {
+                renderResultDiv();
+            }
+            if (!document.getElementById("savedSection").classList.contains("hidden")) {
+                renderSavedItems();
+            }
+        }
+
+        function handleEnter(event) {
+            if (event.key === 'Enter') {
+                event.preventDefault();
+                findRoom();
+            }
+        }
+
+        function handleEditEnter(event) {
+            if (event.key === 'Enter') {
+                event.preventDefault();
+                saveEdit();
+            }
+        }
+
+        function createBeautifulImage(subjectName, roomCode, collegeCode, floorNumber, roomNumber) {
+            document.getElementById('storyAppName').innerText = translations[currentLang].storyApp;
+            document.getElementById('storySubject').innerText = subjectName || '';
+            document.getElementById('storyRoomCode').innerText = roomCode;
+
+            let colName = currentLang === 'ar' ? collegesAR[collegeCode] : collegesEN[collegeCode];
+            let fName = currentLang === 'ar' ? (floorNamesAR[floorNumber] || "رقم " + floorNumber) : (floorNamesEN[floorNumber] || floorNumber);
+            
+            let floorText = currentLang === 'ar' ? `${translations.ar.floorAr} ${fName}` : `${fName} ${translations.en.floorEn}`;
+            let roomTextFormatted = currentLang === 'ar' ? `${translations.ar.roomAr} ${Number(roomNumber)}` : `${translations.en.roomEn} ${Number(roomNumber)}`;
+
+            let detailsContainer = document.getElementById('storyDetailsContainer');
+            
+            if (currentLang === 'ar') {
+                detailsContainer.innerHTML = `
+                    <div style="text-align: right; margin-bottom: 20px;">
+                        <span style="display: inline-block; vertical-align: middle; font-size: 26px; margin-left: 15px;">🏢</span>
+                        <span style="display: inline-block; vertical-align: middle; font-weight: bold; font-size: 22px; color: #1f2937;">${colName}</span>
+                    </div>
+                    <div style="text-align: right; margin-bottom: 20px;">
+                        <span style="display: inline-block; vertical-align: middle; font-size: 26px; margin-left: 15px;">📍</span>
+                        <span style="display: inline-block; vertical-align: middle; font-weight: bold; font-size: 22px; color: #1f2937;">${floorText}</span>
+                    </div>
+                    <div style="text-align: right;">
+                        <span style="display: inline-block; vertical-align: middle; font-size: 26px; margin-left: 15px;">🚪</span>
+                        <span style="display: inline-block; vertical-align: middle; font-weight: bold; font-size: 22px; color: #1f2937;">${roomTextFormatted}</span>
+                    </div>
+                `;
+            } else {
+                detailsContainer.innerHTML = `
+                    <div style="text-align: left; margin-bottom: 20px;">
+                        <span style="display: inline-block; vertical-align: middle; font-size: 26px; margin-right: 15px;">🏢</span>
+                        <span style="display: inline-block; vertical-align: middle; font-weight: bold; font-size: 22px; color: #1f2937;">${colName}</span>
+                    </div>
+                    <div style="text-align: left; margin-bottom: 20px;">
+                        <span style="display: inline-block; vertical-align: middle; font-size: 26px; margin-right: 15px;">📍</span>
+                        <span style="display: inline-block; vertical-align: middle; font-weight: bold; font-size: 22px; color: #1f2937;">${floorText}</span>
+                    </div>
+                    <div style="text-align: left;">
+                        <span style="display: inline-block; vertical-align: middle; font-size: 26px; margin-right: 15px;">🚪</span>
+                        <span style="display: inline-block; vertical-align: middle; font-weight: bold; font-size: 22px; color: #1f2937;">${roomTextFormatted}</span>
+                    </div>
+                `;
+            }
+
+            const element = document.getElementById('storyTemplate');
+            
+            html2canvas(element, { scale: 2, backgroundColor: null, useCORS: true }).then(canvas => {
+                const imgData = canvas.toDataURL('image/png');
+                
+                const container = document.getElementById('previewCanvasContainer');
+                container.innerHTML = `<img src="${imgData}" style="max-height: 50vh;" class="rounded shadow-sm mx-auto border border-gray-200">`;
+                
+                const dlBtn = document.getElementById('downloadConfirmBtn');
+                dlBtn.onclick = function() {
+                    let link = document.createElement('a');
+                    let safeName = subjectName ? subjectName.replace(/\s+/g, '_') : 'Room';
+                    link.download = `${safeName}_${roomCode}.png`;
+                    link.href = imgData;
+                    link.click();
+                    closePreviewModal();
+                };
+                
+                document.getElementById('previewModal').classList.remove('hidden');
+            });
+        }
+
+        function closePreviewModal() {
+            document.getElementById('previewModal').classList.add('hidden');
+        }
+
+        function getRoomText(collegeCode, floorNumber, roomNumber) {
+            let colName = currentLang === 'ar' ? collegesAR[collegeCode] : collegesEN[collegeCode];
+            let fName = currentLang === 'ar' ? (floorNamesAR[floorNumber] || "رقم " + floorNumber) : (floorNamesEN[floorNumber] || floorNumber);
+            if (currentLang === 'ar') return `قاعتك في ${colName} الطابق ${fName} رقمها ${Number(roomNumber)}`;
+            else return `Your classroom is in ${colName}, ${fName} floor, classroom ${Number(roomNumber)}`;
+        }
+
+        function renderResultDiv() {
+            let resultDiv = document.getElementById("resultOutput");
+            let text = getRoomText(currentSearchData.collegeCode, currentSearchData.floorNumber, currentSearchData.roomNumber);
+            
+            resultDiv.innerHTML = `
+                <div class="bg-green-100 text-green-800 p-5 rounded-lg text-center shadow-sm relative border border-green-200">
+                    <div class="text-2xl font-black mb-2 text-green-900 bg-white inline-block px-4 py-1 rounded shadow-sm border border-green-200 tracking-wider font-[system-ui]">
+                        ${currentSearchData.originalInput}
+                    </div>
+                    <div class="font-bold text-lg leading-relaxed">${text}</div>
+                </div>
+            `;
+        }
+
+        function findRoom() {
+            document.getElementById("roomInput").blur();
+
+            let input = document.getElementById("roomInput").value.trim().toUpperCase();
+            let resultDiv = document.getElementById("resultOutput");
+            let saveForm = document.getElementById("saveForm");
+            
+            resultDiv.classList.remove("hidden");
+            saveForm.classList.add("hidden"); 
+
+            if (input.length < 4 && !input.startsWith("G") && !input.startsWith("B")) {
+                resultDiv.innerHTML = `<div class="bg-red-100 text-red-700 p-4 rounded-lg text-center font-semibold">${translations[currentLang].invalidRoom}</div>`;
+                return;
+            }
+
+            let roomNumber = input.slice(-2);
+            let floorNumber = input.slice(-3, -2);
+            let collegeCode = input.slice(0, -3);
+
+            if (collegeCode === "21" && floorNumber === "S") floorNumber = "2";
+            
+            if (collegesAR[collegeCode]) {
+                currentSearchData = { originalInput: input, collegeCode, floorNumber, roomNumber };
+                renderResultDiv();
+                saveForm.classList.remove("hidden");
+                document.getElementById("subjectInput").value = ""; 
+            } else {
+                resultDiv.innerHTML = `<div class="bg-red-100 text-red-700 p-4 rounded-lg text-center font-semibold">${translations[currentLang].invalidCollege}</div>`;
+            }
+        }
+
+        function saveSubject() {
+            let subject = document.getElementById("subjectInput").value.trim();
+            if (!subject) {
+                alert(translations[currentLang].emptySubject);
+                return;
+            }
+
+            let savedItems = JSON.parse(localStorage.getItem("savedRooms")) || [];
+            savedItems.push({
+                subject: subject,
+                originalInput: currentSearchData.originalInput,
+                collegeCode: currentSearchData.collegeCode,
+                floorNumber: currentSearchData.floorNumber,
+                roomNumber: currentSearchData.roomNumber,
+                id: Date.now() 
+            });
+
+            localStorage.setItem("savedRooms", JSON.stringify(savedItems));
+            
+            document.getElementById("saveForm").classList.add("hidden"); 
+            document.getElementById("subjectInput").value = "";
+            
+            renderSavedItems();
+            
+            createBeautifulImage(subject, currentSearchData.originalInput, currentSearchData.collegeCode, currentSearchData.floorNumber, currentSearchData.roomNumber);
+        }
+
+        function renderSavedItems() {
+            let savedList = document.getElementById("savedList");
+            let savedItems = JSON.parse(localStorage.getItem("savedRooms")) || [];
+            savedList.innerHTML = "";
+
+            if (savedItems.length === 0) {
+                savedList.innerHTML = `<div class="text-center text-gray-500 mt-10">${translations[currentLang].noSaved}</div>`;
+                return;
+            }
+
+            savedItems.slice().reverse().forEach(item => {
+                let roomText = getRoomText(item.collegeCode, item.floorNumber, item.roomNumber);
+                let roomCodeBadge = item.originalInput ? 
+                    `<span class="bg-blue-100 text-blue-800 text-sm font-black px-2 py-1 rounded shadow-sm border border-blue-200 dir-ltr inline-block mx-2 font-[system-ui]">${item.originalInput}</span>` : '';
+                
+                savedList.innerHTML += `
+                    <div class="bg-white p-4 rounded-lg border border-gray-200 shadow-sm flex flex-col justify-between active:bg-gray-50 transition">
+                        <div>
+                            <h3 class="font-bold text-blue-700 text-lg dir-auto flex items-center rtl:flex-row-reverse ltr:flex-row justify-end">
+                                ${roomCodeBadge} <span>${item.subject}</span>
+                            </h3>
+                            <p class="text-sm text-gray-600 mt-2 font-semibold">${roomText}</p>
+                        </div>
+                        
+                        <div class="flex justify-end space-x-2 rtl:space-x-reverse mt-4 pt-3 border-t border-gray-100">
+                            <button onclick="createBeautifulImage('${item.subject}', '${item.originalInput || ''}', '${item.collegeCode}', '${item.floorNumber}', '${item.roomNumber}')" class="text-blue-500 hover:text-blue-700 bg-blue-50 p-2 rounded-full active:scale-95 transition" title="حفظ كصورة">
+                                <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
+                                    <path fill-rule="evenodd" d="M3 17a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1zm3.293-7.707a1 1 0 011.414 0L9 10.586V3a1 1 0 112 0v7.586l1.293-1.293a1 1 0 111.414 1.414l-3 3a1 1 0 01-1.414 0l-3-3a1 1 0 010-1.414z" clip-rule="evenodd" />
+                                </svg>
+                            </button>
+                            <button onclick="openEditModal(${item.id})" class="text-yellow-500 hover:text-yellow-600 bg-yellow-50 p-2 rounded-full active:scale-95 transition">
+                                <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
+                                  <path d="M13.586 3.586a2 2 0 112.828 2.828l-.793.793-2.828-2.828.793-.793zM11.379 5.793L3 14.172V17h2.828l8.379-8.379-2.828-2.828z" />
+                                </svg>
+                            </button>
+                            <button onclick="deleteItem(${item.id})" class="text-red-500 hover:text-red-700 bg-red-50 p-2 rounded-full active:scale-95 transition">
+                                <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
+                                    <path fill-rule="evenodd" d="M9 2a1 1 0 00-.894.553L7.382 4H4a1 1 0 000 2v10a2 2 0 002 2h8a2 2 0 002-2V6a1 1 0 100-2h-3.382l-.724-1.447A1 1 0 0011 2H9zM7 8a1 1 0 012 0v6a1 1 0 11-2 0V8zm5-1a1 1 0 00-1 1v6a1 1 0 102 0V8a1 1 0 00-1-1z" clip-rule="evenodd" />
+                                </svg>
+                            </button>
+                        </div>
+                    </div>
+                `;
+            });
+        }
+
+        function openEditModal(id) {
+            let savedItems = JSON.parse(localStorage.getItem("savedRooms")) || [];
+            let item = savedItems.find(i => i.id === id);
+            if (item) {
+                currentEditId = id;
+                let modal = document.getElementById("editModal");
+                let input = document.getElementById("editSubjectInput");
+                
+                input.value = item.subject;
+                autoDirection(input);
+                modal.classList.remove("hidden");
+                
+                setTimeout(() => input.focus(), 50);
+            }
+        }
+
+        function closeEditModal() {
+            document.getElementById("editModal").classList.add("hidden");
+            currentEditId = null;
+        }
+
+        function saveEdit() {
+            if (!currentEditId) return;
+            
+            let newSubject = document.getElementById("editSubjectInput").value.trim();
+            if (newSubject !== "") {
+                let savedItems = JSON.parse(localStorage.getItem("savedRooms")) || [];
+                let itemIndex = savedItems.findIndex(i => i.id === currentEditId);
+                
+                if (itemIndex > -1) {
+                    savedItems[itemIndex].subject = newSubject;
+                    localStorage.setItem("savedRooms", JSON.stringify(savedItems));
+                    renderSavedItems();
+                }
+            }
+            closeEditModal();
+        }
+
+        function deleteItem(id) {
+            let savedItems = JSON.parse(localStorage.getItem("savedRooms")) || [];
+            savedItems = savedItems.filter(item => item.id !== id);
+            localStorage.setItem("savedRooms", JSON.stringify(savedItems));
+            renderSavedItems();
+        }
+
+        function switchTab(tab) {
+            let searchSec = document.getElementById("searchSection");
+            let savedSec = document.getElementById("savedSection");
+            let tabSearch = document.getElementById("tab-search");
+            let tabSaved = document.getElementById("tab-saved");
+
+            if (tab === 'search') {
+                searchSec.classList.remove("hidden");
+                savedSec.classList.add("hidden");
+                tabSearch.classList.add("text-blue-600"); tabSearch.classList.remove("text-gray-400");
+                tabSaved.classList.remove("text-blue-600"); tabSaved.classList.add("text-gray-400");
+            } else {
+                searchSec.classList.add("hidden");
+                savedSec.classList.remove("hidden");
+                tabSaved.classList.add("text-blue-600"); tabSaved.classList.remove("text-gray-400");
+                tabSearch.classList.remove("text-blue-600"); tabSearch.classList.add("text-gray-400");
+                renderSavedItems(); 
+            }
+        }
+
+        window.onload = function() {
+            autoDirection(document.getElementById('roomInput'));
+            renderSavedItems();
+        };
+    </script>
+</body>
+</html>
